@@ -1,16 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+using RagShared.Options;
 
 namespace RagIndexer.Options;
 
-public sealed class AzureOpenAiOptions
-{
-    public const string SectionName = "AzureOpenAI";
-
-    [Required(AllowEmptyStrings = false, ErrorMessage = "AzureOpenAI:Endpoint is required.")]
-    public string Endpoint { get; set; } = default!;
-
-    [Required(AllowEmptyStrings = false, ErrorMessage = "AzureOpenAI:ApiKey is required.")]
-    public string ApiKey { get; set; } = default!;
-
-    public string EmbeddingDeployment { get; set; } = "text-embedding-3-small";
-}
+/// <summary>
+/// Inherits all Azure OpenAI settings from the shared base.
+/// No rag-indexer-specific additions required.
+/// </summary>
+public sealed class AzureOpenAiOptions : AzureOpenAiBaseOptions { }

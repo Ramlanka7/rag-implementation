@@ -1,11 +1,11 @@
 using Azure;
-using Azure.AI.OpenAI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
 using Polly;
 using Polly.Retry;
 using RagIndexer.Options;
+using RagShared.Services;
 
 namespace RagIndexer.Services;
 
@@ -21,9 +21,7 @@ public class EmbeddingService : IEmbeddingService
 
     public EmbeddingService(IOptions<AzureOpenAiOptions> options, ILogger<EmbeddingService> logger)
     {
-        var opt = options.Value;
-        var openAiClient = new AzureOpenAIClient(new Uri(opt.Endpoint), new AzureKeyCredential(opt.ApiKey));
-        _client = openAiClient.GetEmbeddingClient(opt.EmbeddingDeployment);
+        _client = EmbeddingClientFactory.Create(options.Value);
         _logger = logger;
         _retry  = BuildRetryPipeline();
     }

@@ -1,27 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>RagIndexer</RootNamespace>
-    <AssemblyName>rag-indexer</AssemblyName>
+    <RootNamespace>RagApi</RootNamespace>
+    <AssemblyName>rag-api</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Allows rag-indexer.Tests to access internal members -->
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>rag-indexer.Tests</_Parameter1>
+      <_Parameter1>rag-api.Tests</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageReference Include="Azure.Search.Documents" Version="11.6.0" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.0" />
-    <PackageReference Include="Polly.Core" Version="8.6.1" />
   </ItemGroup>
 
   <ItemGroup>
