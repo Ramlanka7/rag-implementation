@@ -1,25 +1,28 @@
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RagIndexer.Models;
+using RagIndexer.Options;
 
 namespace RagIndexer.Services;
 
 /// <summary>
 /// Extracts rows from AdventureWorks tables and converts them into text documents.
 /// </summary>
-public class SqlExtractorService
+public class SqlExtractorService : ISqlExtractorService
 {
     private readonly string _connectionString;
     private readonly int _maxRows;
     private readonly ILogger<SqlExtractorService> _logger;
 
-    public SqlExtractorService(IConfiguration config, ILogger<SqlExtractorService> logger)
+    public SqlExtractorService(
+        IOptions<AzureSqlOptions>  sqlOptions,
+        IOptions<IndexerOptions>   indexerOptions,
+        ILogger<SqlExtractorService> logger)
     {
-        _connectionString = config["AzureSQL:ConnectionString"]
-            ?? throw new InvalidOperationException("AzureSQL:ConnectionString is not configured.");
-        _maxRows = config.GetValue<int>("Indexer:MaxRowsPerTable", 2000);
-        _logger = logger;
+        _connectionString = sqlOptions.Value.ConnectionString;
+        _maxRows          = indexerOptions.Value.MaxRowsPerTable;
+        _logger           = logger;
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -3,16 +3,20 @@ using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 using Azure.Search.Documents.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 using RagIndexer.Models;
+using RagIndexer.Options;
 
 namespace RagIndexer.Services;
 
 /// <summary>
 /// Creates and manages the Azure AI Search index, and uploads IndexDocuments.
+/// Implements retry with exponential back-off for transient errors.
 /// </summary>
-public class SearchIndexerService
+public class SearchIndexerService : ISearchIndexerService
 {
     private const int VectorDimensions = 1536; // text-embedding-3-small default
 
@@ -20,18 +24,19 @@ public class SearchIndexerService
     private readonly SearchClient       _searchClient;
     private readonly string             _indexName;
     private readonly ILogger<SearchIndexerService> _logger;
+    private readonly ResiliencePipeline _retry;
 
-    public SearchIndexerService(IConfiguration config, ILogger<SearchIndexerService> logger)
+    public SearchIndexerService(IOptions<AzureSearchOptions> options, ILogger<SearchIndexerService> logger)
     {
-        var endpoint  = new Uri(config["AzureSearch:Endpoint"]
-            ?? throw new InvalidOperationException("AzureSearch:Endpoint is not configured."));
-        var apiKey    = new AzureKeyCredential(config["AzureSearch:ApiKey"]
-            ?? throw new InvalidOperationException("AzureSearch:ApiKey is not configured."));
-        _indexName    = config["AzureSearch:IndexName"] ?? "adventureworks-index";
+        var opt       = options.Value;
+        var endpoint  = new Uri(opt.Endpoint);
+        var apiKey    = new AzureKeyCredential(opt.ApiKey);
+        _indexName    = opt.IndexName;
 
         _indexClient  = new SearchIndexClient(endpoint, apiKey);
         _searchClient = new SearchClient(endpoint, _indexName, apiKey);
         _logger       = logger;
+        _retry        = BuildRetryPipeline();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -44,17 +49,20 @@ public class SearchIndexerService
     /// </summary>
     public async Task EnsureIndexExistsAsync(CancellationToken cancellationToken = default)
     {
-        try
+        await _retry.ExecuteAsync(async ct =>
         {
-            await _indexClient.GetIndexAsync(_indexName, cancellationToken);
-            _logger.LogInformation("Index '{IndexName}' already exists.", _indexName);
-        }
-        catch (RequestFailedException ex) when (ex.Status == 404)
-        {
-            _logger.LogInformation("Index '{IndexName}' not found. Creating...", _indexName);
-            await _indexClient.CreateIndexAsync(BuildIndex(), cancellationToken);
-            _logger.LogInformation("Index '{IndexName}' created successfully.", _indexName);
-        }
+            try
+            {
+                await _indexClient.GetIndexAsync(_indexName, ct);
+                _logger.LogInformation("Index '{IndexName}' already exists.", _indexName);
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                _logger.LogInformation("Index '{IndexName}' not found. Creating...", _indexName);
+                await _indexClient.CreateIndexAsync(BuildIndex(), ct);
+                _logger.LogInformation("Index '{IndexName}' created successfully.", _indexName);
+            }
+        }, cancellationToken);
     }
 
     private SearchIndex BuildIndex()
@@ -98,13 +106,41 @@ public class SearchIndexerService
     {
         if (documents.Count == 0) return;
 
-        var batch = IndexDocumentsBatch.MergeOrUpload(documents);
-        var result = await _searchClient.IndexDocumentsAsync(batch, cancellationToken: cancellationToken);
+        await _retry.ExecuteAsync(async ct =>
+        {
+            var batch  = IndexDocumentsBatch.MergeOrUpload(documents);
+            var result = await _searchClient.IndexDocumentsAsync(batch, cancellationToken: ct);
 
-        var failed = result.Value.Results.Count(r => !r.Succeeded);
-        if (failed > 0)
-            _logger.LogWarning("{Failed}/{Total} documents failed to index.", failed, documents.Count);
-        else
-            _logger.LogInformation("Uploaded {Count} documents successfully.", documents.Count);
+            var failed = result.Value.Results.Count(r => !r.Succeeded);
+            if (failed > 0)
+                _logger.LogWarning("{Failed}/{Total} documents failed to index.", failed, documents.Count);
+            else
+                _logger.LogInformation("Uploaded {Count} documents successfully.", documents.Count);
+        }, cancellationToken);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Resilience
+    // ─────────────────────────────────────────────────────────────
+
+    private ResiliencePipeline BuildRetryPipeline() =>
+        new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                MaxRetryAttempts = 4,
+                Delay            = TimeSpan.FromSeconds(2),
+                BackoffType      = DelayBackoffType.Exponential,
+                UseJitter        = true,
+                ShouldHandle     = new PredicateBuilder()
+                    .Handle<RequestFailedException>(ex => ex.Status is 429 or 500 or 503)
+                    .Handle<HttpRequestException>(),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning(
+                        "Search upload retry {Attempt} after {Delay:g}. Reason: {Reason}",
+                        args.AttemptNumber + 1, args.RetryDelay, args.Outcome.Exception?.Message);
+                    return ValueTask.CompletedTask;
+                }
+            })
+            .Build();
 }
