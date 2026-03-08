@@ -1,0 +1,20 @@
+# Build outputs
+bin/
+obj/
+
+# Environment-specific settings (contain secrets - never commit)
+appsettings.dev.json
+appsettings.qa.json
+appsettings.production.json
+
+# .NET
+*.user
+*.suo
+.vs/
+
+# Rider
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
