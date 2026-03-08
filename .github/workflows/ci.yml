@@ -9,8 +9,8 @@ on:
       - dev
 
 jobs:
-  build-and-test:
-    name: Build and Test (.NET 10)
+  build-and-test-api:
+    name: Build and Test API (.NET 10)
     runs-on: ubuntu-latest
 
     steps:
@@ -30,3 +30,30 @@ jobs:
 
       - name: Run tests
         run: dotnet test rag-implementation.sln --no-build --configuration Release --verbosity normal
+
+  build-and-test-ui:
+    name: Build and Test UI (Node.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: rag-ui/package.json
+
+      - name: Install dependencies
+        working-directory: rag-ui
+        run: npm ci
+
+      - name: Run tests
+        working-directory: rag-ui
+        run: npm test
+
+      - name: Build
+        working-directory: rag-ui
+        run: npm run build
