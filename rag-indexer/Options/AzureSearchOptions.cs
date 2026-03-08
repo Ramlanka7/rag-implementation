@@ -1,16 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+using RagShared.Options;
 
 namespace RagIndexer.Options;
 
-public sealed class AzureSearchOptions
-{
-    public const string SectionName = "AzureSearch";
-
-    [Required(AllowEmptyStrings = false, ErrorMessage = "AzureSearch:Endpoint is required.")]
-    public string Endpoint { get; set; } = default!;
-
-    [Required(AllowEmptyStrings = false, ErrorMessage = "AzureSearch:ApiKey is required.")]
-    public string ApiKey { get; set; } = default!;
-
-    public string IndexName { get; set; } = "adventureworks-index";
-}
+/// <summary>
+/// Inherits all Azure Search settings from the shared base.
+/// No rag-indexer-specific additions required.
+/// </summary>
+public sealed class AzureSearchOptions : AzureSearchBaseOptions { }
