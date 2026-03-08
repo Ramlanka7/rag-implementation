@@ -11,8 +11,8 @@ This document is the step-by-step implementation plan for **rag-api** and **rag-
 |------|-------------|-------------|
 | 1    | Azure Infrastructure | ✅ Done |
 | 2    | rag-indexer | ✅ Done |
-| 3    | rag-api     | ⬜ Up next |
-| 4    | rag-ui      | ⬜ Pending |
+| 3    | rag-api     | ✅ Done |
+| 4    | rag-ui      | ✅ Done |
 
 ---
 
