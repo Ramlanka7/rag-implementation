@@ -39,7 +39,7 @@ public class VectorSearchService : IVectorSearchService
         var vectorQuery = new VectorizedQuery(vector)
         {
             KNearestNeighborsCount = effectiveTopK,
-            Fields = { "contentVector" }
+            Fields = { "vector" }
         };
 
         var searchOptions = new SearchOptions
